@@ -1,6 +1,6 @@
 <?php
 /**
- * Piwik Component
+ *  Piwik Component
  *
  * @author Philip Lawrence <philip@misterphilip.com>
  * @link http://misterphilip.com
