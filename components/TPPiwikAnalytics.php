@@ -29,7 +29,11 @@ class TPPiwikAnalytics extends CApplicationComponent
      * @var bool
      */
     public $autoRender = false;
-
+    /**
+     * Image tracker
+     * @var bool 
+     */
+    public $imageTracker = false;
     /**
      * Automatically add trackPageView when render is called
      * @var bool
@@ -41,6 +45,10 @@ class TPPiwikAnalytics extends CApplicationComponent
      * @var string
      */
     public $variableName = '_paq';
+    /**
+     * 
+     */
+    
 
     /**
      * Type of quotes to use for values
@@ -110,8 +118,7 @@ class TPPiwikAnalytics extends CApplicationComponent
     /**
      * init function - Yii automaticall calls this
      */
-    public function init()
-    {
+    public function init() {
         // Verify we have the basics
         if($this->siteID == '') 
             throw new CException('Missing required parameter "Site ID" for TPPiwikAnalytics');
@@ -127,59 +134,38 @@ class TPPiwikAnalytics extends CApplicationComponent
      * Render and return the Piwik code
      * @return mixed
      */
-    public function render()
-    {
+    public function render() {
+        
+        // tracking string
+        $tracker = '';
+        
+        $option = Utility::mergeBools( array( $this->autoRender, $this->imageTracker ) );
+
         // Check to see if we need to throw in the trackPageview call
-        if(!in_array('trackPageView', $this->_calledOptions) && $this->autoPageview)
-        {
+        if(!in_array('trackPageView', $this->_calledOptions) && $this->autoPageview) {
             $this->trackPageView();
         }
-        
-        // Start the JS string
-        $js = 'var ' . $this->variableName . ' = ' . $this->variableName . ' || [];' . PHP_EOL;
-        $js.= '(function() { ' . PHP_EOL;
-        
-        foreach($this->_data as $data)
-        {                
-            // Clean up each item
-            foreach($data as $key => $item)
-            {
-                
-                if(is_string($item))
-                {
-                    $data[$key] = self::Q . preg_replace('~(?<!\\\)'. self::Q . '~', '\\' . self::Q, $item) . self::Q;
-                }
-                else if(is_bool($item))
-                {
-                    $data[$key] = ($item) ? 'true' : 'false';
-                }
-                
-                $prefixed = true;
-            }
 
-            $js.= '  ' . $this->variableName . '.push([' . implode(',', $data) . ']);' . PHP_EOL;
+        // bitshift the flags
+        switch( $option ) {
+            case 0 :
+                $tracker = $this->_getJS();
+                return $tracker;
+                break;
+            case 1 :
+                $tracker = $this->_getJs();
+                Yii::app()->clientScript->registerScript('TPPiwikAnalytics', $tracker, CClientScript::POS_END);
+                return;
+                break;
+            case 2 :
+                $tracker = "<img src=\"" . $this->_getImageTracker() . "\" width=\"0\" height=\"0\" />";
+                return $tracker;
+                break;
+            case 3 :
+                Yii::app()->clientScript->registerHTMLElement( '_piwik', 'img', ClientScript::POS_END,  array( 'src' => $this->_getImageTracker(), 'width' => 0, 'height' => 0 ), '', true );
+                break;
         }
-        $js.= <<<EOJS
-  // Call the file
-  var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-  g.type='text/javascript'; g.defer=true; g.async=true; g.src='{$this->trackerURL}/piwik.js';
-  s.parentNode.insertBefore(g,s); 
-})();
-// Piwik Extension provided by TagPla.net
-// https://github.com/TagPlanet/yii-analytics-piwik
-// Copyright 2013, TagPla.net & Philip Lawrence
-EOJS;
-        // Should we auto add in the analytics tag?
-        if($this->autoRender)
-        {
-            Yii::app()->clientScript
-                    ->registerScript('TPPiwikAnalytics', $js, CClientScript::POS_HEAD);
-            return;
-        }
-        else
-        {
-            return $js;
-        }
+        
     }
 
     /**
@@ -208,5 +194,39 @@ EOJS;
         $data = array_merge(array($variable), $arguments);
         array_push($this->_data, $data);
         $this->_calledOptions[] = $variable;
+    }
+    
+    private function _getJS(){
+        
+        // Start the JS string
+        $js = 'var ' . $this->variableName . ' = ' . $this->variableName . ' || [];' . PHP_EOL;
+        $js.= '(function() { ' . PHP_EOL;
+        
+        foreach($this->_data as $data) {                
+            // Clean up each item
+            foreach($data as $key => $item) {
+                
+                if(is_string($item)){
+                    $data[$key] = self::Q . preg_replace('~(?<!\\\)'. self::Q . '~', '\\' . self::Q, $item) . self::Q;
+                }
+                else if(is_bool($item)) {
+                    $data[$key] = ($item) ? 'true' : 'false';
+                }
+                
+                $prefixed = true;
+            }
+
+            $js.= '  ' . $this->variableName . '.push([' . implode(',', $data) . ']);' . PHP_EOL;
+        }
+        $js .= "var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];". PHP_EOL;
+        $js .= "g.type='text/javascript'; g.defer=true; g.async=true; g.src='{$this->trackerURL}/piwik.js';". PHP_EOL;
+        $js .= "s.parentNode.insertBefore(g,s);". PHP_EOL; 
+        $js .= "})();";
+        
+        return $js;        
+    }
+    
+    public function _getImageTracker() {
+        return "http://example.com/?imagetracker=true";
     }
 }
