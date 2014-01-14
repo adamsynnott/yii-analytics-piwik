@@ -138,8 +138,7 @@ class TPPiwikAnalytics extends CApplicationComponent
         
         // tracking string
         $tracker = '';
-        
-        $option = Utility::mergeBools( array( $this->autoRender, $this->imageTracker ) );
+        $option =  ($this->autoRender << 0) + ( $this->imageTracker << 1 );
 
         // Check to see if we need to throw in the trackPageview call
         if(!in_array('trackPageView', $this->_calledOptions) && $this->autoPageview) {
@@ -158,11 +157,13 @@ class TPPiwikAnalytics extends CApplicationComponent
                 return;
                 break;
             case 2 :
-                $tracker = "<img src=\"" . $this->_getImageTracker() . "\" width=\"0\" height=\"0\" />";
+                $tracker = "<img src=\"" . $this->_getImageTracker() . "\" width=\"0\" height=\"0\" style=\"border:none;\" />";
                 return $tracker;
                 break;
             case 3 :
-                Yii::app()->clientScript->registerHTMLElement( '_piwik', 'img', ClientScript::POS_END,  array( 'src' => $this->_getImageTracker(), 'width' => 0, 'height' => 0 ), '', true );
+                if (preg_match('/bot|crawl|slurp|spider/i', $_SERVER['HTTP_USER_AGENT'])) {} else {
+                    Yii::app()->clientScript->registerHTMLElement( '_piwik', 'img', ClientScript::POS_END,  array( 'src' => $this->_getImageTracker(), 'width' => 0, 'height' => 0, 'style' => 'border:none;' ), '', true );
+                }
                 break;
         }
         
@@ -196,6 +197,11 @@ class TPPiwikAnalytics extends CApplicationComponent
         $this->_calledOptions[] = $variable;
     }
     
+    /**
+     * _getJS
+     * builds the tracking code JS
+     * @return string
+     */
     private function _getJS(){
         
         // Start the JS string
@@ -226,7 +232,13 @@ class TPPiwikAnalytics extends CApplicationComponent
         return $js;        
     }
     
+    /**
+     * _getImageTracker
+     * source of the image element
+     * @return string
+     */
     public function _getImageTracker() {
-        return "http://example.com/?imagetracker=true";
+        /* TODO - improve this */
+        return "{$this->trackerURL}/piwik.php?idsite={$this->siteID}&amp;rec=1&amp;urlref&_cvar={'5':['Non Bot','No Javascript']}";  
     }
 }
